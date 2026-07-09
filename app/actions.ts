@@ -3,15 +3,21 @@
 import { supabase } from '../utils/supabase'
 import { revalidatePath } from 'next/cache'
 
-// Fungsi 1: Input Barang Baru (Sudah ada sebelumnya)
+// Fungsi pembersih titik/koma dari input teks menjadi angka murni
+const parseRupiah = (value: string | null) => {
+  if (!value) return 0;
+  return parseFloat(value.replace(/[^0-9]/g, '')) || 0;
+}
+
 export async function tambahBarang(formData: FormData) {
   const kategori = formData.get('kategori') as string
   const nama_barang = formData.get('nama_barang') as string
   const imei_sn = formData.get('imei_sn') as string
   
-  const harga_beli = parseFloat(formData.get('harga_beli') as string) || 0
-  const biaya_perbaikan = parseFloat(formData.get('biaya_perbaikan') as string) || 0
-  const biaya_lainnya = parseFloat(formData.get('biaya_lainnya') as string) || 0
+  // Menggunakan parseRupiah agar aman meski diinput pakai titik
+  const harga_beli = parseRupiah(formData.get('harga_beli') as string)
+  const biaya_perbaikan = parseRupiah(formData.get('biaya_perbaikan') as string)
+  const biaya_lainnya = parseRupiah(formData.get('biaya_lainnya') as string)
   const keterangan_biaya = formData.get('keterangan_biaya') as string
 
   if (!kategori || !nama_barang || !imei_sn) {
@@ -24,9 +30,7 @@ export async function tambahBarang(formData: FormData) {
     .select()
     .single()
 
-  if (deviceError) {
-    throw new Error(`Gagal input unit: ${deviceError.message}`)
-  }
+  if (deviceError) throw new Error(`Gagal input unit: ${deviceError.message}`)
 
   const { error: capitalError } = await supabase
     .from('capitals')
@@ -38,41 +42,50 @@ export async function tambahBarang(formData: FormData) {
       keterangan_biaya
     }])
 
-  if (capitalError) {
-    throw new Error(`Gagal input modal: ${capitalError.message}`)
-  }
+  if (capitalError) throw new Error(`Gagal input modal: ${capitalError.message}`)
 
   revalidatePath('/')
 }
 
-// Fungsi 2: Eksekusi Penjualan & Hitung Realisasi Profit (Fungsi Baru)
 export async function jualBarang(formData: FormData) {
   const device_id = formData.get('device_id') as string
-  const harga_jual = parseFloat(formData.get('harga_jual') as string) || 0
+  const harga_jual = parseRupiah(formData.get('harga_jual') as string)
 
   if (!device_id || harga_jual <= 0) {
     throw new Error('Data penjualan tidak valid! Harga jual harus diisi.')
   }
 
-  // 1. Catat transaksi penjualan ke tabel transactions
   const { error: txError } = await supabase
     .from('transactions')
     .insert([{ device_id, harga_jual }])
 
-  if (txError) {
-    throw new Error(`Gagal mencatat transaksi: ${txError.message}`)
-  }
+  if (txError) throw new Error(`Gagal mencatat transaksi: ${txError.message}`)
 
-  // 2. Ubah status barang di tabel devices menjadi 'sold'
   const { error: deviceError } = await supabase
     .from('devices')
     .update({ status: 'sold' })
     .eq('id', device_id)
 
-  if (deviceError) {
-    throw new Error(`Gagal memperbarui status perangkat: ${deviceError.message}`)
-  }
+  if (deviceError) throw new Error(`Gagal memperbarui status perangkat: ${deviceError.message}`)
 
-  // Refresh data halaman utama secara realtime
+  revalidatePath('/')
+}
+
+// FUNGSI BARU: Hapus Barang (HANYA UNTUK STATUS READY)
+export async function hapusBarang(formData: FormData) {
+  const device_id = formData.get('device_id') as string
+
+  if (!device_id) throw new Error('ID perangkat tidak ditemukan')
+
+  // Catatan Keamanan: Supabase akan otomatis menghapus data di tabel 'capitals' 
+  // karena kita sudah set ON DELETE CASCADE saat bikin tabel dulu.
+  const { error } = await supabase
+    .from('devices')
+    .delete()
+    .eq('id', device_id)
+    .eq('status', 'ready') // Pengaman: Barang 'sold' gak bisa dihapus dari sini
+
+  if (error) throw new Error(`Gagal menghapus data: ${error.message}`)
+
   revalidatePath('/')
 }
