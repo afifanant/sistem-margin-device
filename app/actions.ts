@@ -9,12 +9,12 @@ const parseRupiah = (value: string | null) => {
   return parseFloat(value.replace(/[^0-9]/g, '')) || 0;
 }
 
+// 1. FUNGSI INPUT BARANG BARU
 export async function tambahBarang(formData: FormData) {
   const kategori = formData.get('kategori') as string
   const nama_barang = formData.get('nama_barang') as string
   const imei_sn = formData.get('imei_sn') as string
   
-  // Menggunakan parseRupiah agar aman meski diinput pakai titik
   const harga_beli = parseRupiah(formData.get('harga_beli') as string)
   const biaya_perbaikan = parseRupiah(formData.get('biaya_perbaikan') as string)
   const biaya_lainnya = parseRupiah(formData.get('biaya_lainnya') as string)
@@ -47,6 +47,7 @@ export async function tambahBarang(formData: FormData) {
   revalidatePath('/')
 }
 
+// 2. FUNGSI EKSEKUSI PENJUALAN
 export async function jualBarang(formData: FormData) {
   const device_id = formData.get('device_id') as string
   const harga_jual = parseRupiah(formData.get('harga_jual') as string)
@@ -71,21 +72,35 @@ export async function jualBarang(formData: FormData) {
   revalidatePath('/')
 }
 
-// FUNGSI BARU: Hapus Barang (HANYA UNTUK STATUS READY)
+// 3. FUNGSI HAPUS ABSOLUT (Mendukung Penghapusan Unit Ready & Sold secara Aman)
 export async function hapusBarang(formData: FormData) {
   const device_id = formData.get('device_id') as string
 
   if (!device_id) throw new Error('ID perangkat tidak ditemukan')
 
-  // Catatan Keamanan: Supabase akan otomatis menghapus data di tabel 'capitals' 
-  // karena kita sudah set ON DELETE CASCADE saat bikin tabel dulu.
-  const { error } = await supabase
+  // Langkah A: Bersihkan riwayat transaksi terlebih dahulu (mencegah Foreign Key Error)
+  const { error: txDeleteError } = await supabase
+    .from('transactions')
+    .delete()
+    .eq('device_id', device_id)
+
+  if (txDeleteError) throw new Error(`Gagal membersihkan data transaksi: ${txDeleteError.message}`)
+
+  // Langkah B: Bersihkan rincian modal dasar
+  const { error: capDeleteError } = await supabase
+    .from('capitals')
+    .delete()
+    .eq('device_id', device_id)
+
+  if (capDeleteError) throw new Error(`Gagal membersihkan data modal: ${capDeleteError.message}`)
+
+  // Langkah C: Hapus data utama perangkat setelah dependensinya bersih
+  const { error: deviceDeleteError } = await supabase
     .from('devices')
     .delete()
     .eq('id', device_id)
-    .eq('status', 'ready') // Pengaman: Barang 'sold' gak bisa dihapus dari sini
 
-  if (error) throw new Error(`Gagal menghapus data: ${error.message}`)
+  if (deviceDeleteError) throw new Error(`Gagal menghapus entitas perangkat: ${deviceDeleteError.message}`)
 
   revalidatePath('/')
 }
