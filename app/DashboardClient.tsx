@@ -1,4 +1,4 @@
-'use client'
+'use client' // Trigger hot reload
 
 import React, { useState } from 'react'
 import { 
