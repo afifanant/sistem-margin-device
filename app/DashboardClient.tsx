@@ -111,7 +111,8 @@ export default function DashboardClient({
   perangkatSold.forEach(item => {
     const cat = item.kategori || 'Lainnya'
     const m = item.capitals?.[0] || { harga_beli: 0, biaya_perbaikan: 0, biaya_lainnya: 0 }
-    const t = item.transactions?.[0] || { harga_jual: 0 }
+    const validTx = item.transactions?.filter((t: any) => t.harga_jual > 0) || []
+    const t = validTx[validTx.length - 1] || item.transactions?.[0] || { harga_jual: 0 }
     const hpp = m.harga_beli + m.biaya_perbaikan + m.biaya_lainnya
     const profit = t.harga_jual - hpp
     categoryProfits[cat] = (categoryProfits[cat] || 0) + profit
@@ -189,7 +190,8 @@ export default function DashboardClient({
     let totalMarginSold = 0
     listSold.forEach(item => {
       const m = item.capitals?.[0] || { harga_beli: 0, biaya_perbaikan: 0, biaya_lainnya: 0 }
-      const t = item.transactions?.[0] || { harga_jual: 0 }
+      const validTx = item.transactions?.filter((t: any) => t.harga_jual > 0) || []
+      const t = validTx[validTx.length - 1] || item.transactions?.[0] || { harga_jual: 0 }
       const hpp = m.harga_beli + m.biaya_perbaikan + m.biaya_lainnya
       totalRevenue += t.harga_jual
       totalHppSold += hpp
@@ -373,13 +375,17 @@ export default function DashboardClient({
     
     // Sort sold devices by tanggal_terjual
     const sortedSold = [...perangkatSold].sort((a, b) => {
-      const dateA = a.transactions?.[0]?.tanggal_terjual || ''
-      const dateB = b.transactions?.[0]?.tanggal_terjual || ''
+      const validTxA = a.transactions?.filter((t: any) => t.harga_jual > 0) || []
+      const validTxB = b.transactions?.filter((t: any) => t.harga_jual > 0) || []
+      const dateA = validTxA[validTxA.length - 1]?.tanggal_terjual || a.transactions?.[0]?.tanggal_terjual || ''
+      const dateB = validTxB[validTxB.length - 1]?.tanggal_terjual || b.transactions?.[0]?.tanggal_terjual || ''
       return dateA.localeCompare(dateB)
     })
 
     sortedSold.forEach(item => {
-      const txDateStr = item.transactions?.[0]?.tanggal_terjual
+      const validTx = item.transactions?.filter((t: any) => t.harga_jual > 0) || []
+      const t = validTx[validTx.length - 1] || item.transactions?.[0] || { harga_jual: 0 }
+      const txDateStr = t.tanggal_terjual
       if (!txDateStr) return
       
       const date = new Date(txDateStr)
@@ -387,7 +393,6 @@ export default function DashboardClient({
       const label = date.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' })
       
       const m = item.capitals?.[0] || { harga_beli: 0, biaya_perbaikan: 0, biaya_lainnya: 0 }
-      const t = item.transactions?.[0] || { harga_jual: 0 }
       const hpp = m.harga_beli + m.biaya_perbaikan + m.biaya_lainnya
       const profit = t.harga_jual - hpp
 
@@ -1214,7 +1219,8 @@ export default function DashboardClient({
                       {filteredSold.map((item: any) => {
                         const modal = item.capitals?.[0] || { harga_beli: 0, biaya_perbaikan: 0, biaya_lainnya: 0 }
                         const totalHpp = modal.harga_beli + modal.biaya_perbaikan + modal.biaya_lainnya
-                        const transaksi = item.transactions?.[0] || { harga_jual: 0, tanggal_terjual: '' }
+                        const validTx = item.transactions?.filter((t: any) => t.harga_jual > 0) || []
+                        const transaksi = validTx[validTx.length - 1] || item.transactions?.[0] || { harga_jual: 0, tanggal_terjual: '' }
                         const profitBersih = transaksi.harga_jual - totalHpp
                         const isProfit = profitBersih >= 0
                         const isMobile = item.kategori === 'iPhone' || item.kategori === 'Android'

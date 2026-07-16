@@ -36,7 +36,8 @@ export default async function Home() {
   let totalProfitKotor = 0
   perangkatSold.forEach((item: any) => {
     const m = item.capitals?.[0] || { harga_beli: 0, biaya_perbaikan: 0, biaya_lainnya: 0 }
-    const t = item.transactions?.[0] || { harga_jual: 0 }
+    const validTx = item.transactions?.filter((t: any) => t.harga_jual > 0) || []
+    const t = validTx[validTx.length - 1] || item.transactions?.[0] || { harga_jual: 0 }
     const modal = m.harga_beli + m.biaya_perbaikan + m.biaya_lainnya
     totalProfitKotor += (t.harga_jual - modal)
   })
