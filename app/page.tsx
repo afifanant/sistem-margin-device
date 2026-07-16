@@ -7,7 +7,7 @@ export default async function Home() {
   const { data: perangkatReadyRaw } = await supabase
     .from('devices')
     .select(`
-      id, kategori, nama_barang, imei_sn,
+      id, kategori, nama_barang, imei_sn, created_at,
       capitals (harga_beli, biaya_perbaikan, biaya_lainnya, keterangan_biaya)
     `)
     .eq('status', 'ready')
@@ -16,7 +16,7 @@ export default async function Home() {
   const { data: perangkatSoldRaw } = await supabase
     .from('devices')
     .select(`
-      id, kategori, nama_barang, imei_sn,
+      id, kategori, nama_barang, imei_sn, created_at,
       capitals (harga_beli, biaya_perbaikan, biaya_lainnya, keterangan_biaya),
       transactions (harga_jual, tanggal_terjual)
     `)

@@ -21,7 +21,7 @@ export async function tambahBarang(formData: FormData) {
   const keterangan_biaya = formData.get('keterangan_biaya') as string
 
   if (!kategori || !nama_barang || !imei_sn) {
-    throw new Error('Kategori, Nama Barang, dan IMEI wajib diisi!')
+    throw new Error('Kategori, Nama Barang, dan Kode HP/SN wajib diisi!')
   }
 
   const { data: deviceData, error: deviceError } = await supabase
@@ -51,14 +51,20 @@ export async function tambahBarang(formData: FormData) {
 export async function jualBarang(formData: FormData) {
   const device_id = formData.get('device_id') as string
   const harga_jual = parseRupiah(formData.get('harga_jual') as string)
+  const tanggal_terjual = formData.get('tanggal_terjual') as string
 
   if (!device_id || harga_jual <= 0) {
     throw new Error('Data penjualan tidak valid! Harga jual harus diisi.')
   }
 
+  const txData: any = { device_id, harga_jual }
+  if (tanggal_terjual) {
+    txData.tanggal_terjual = tanggal_terjual
+  }
+
   const { error: txError } = await supabase
     .from('transactions')
-    .insert([{ device_id, harga_jual }])
+    .insert([txData])
 
   if (txError) throw new Error(`Gagal mencatat transaksi: ${txError.message}`)
 
